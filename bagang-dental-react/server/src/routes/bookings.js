@@ -7,7 +7,10 @@ import Schedule from '../models/Schedule.js';
 import PatientService from '../models/PatientService.js';
 import Appointment from '../models/Appointment.js';
 import AppointmentInvoice from '../models/AppointmentInvoice.js';
+
 import { adminAuth } from '../middleware/adminAuth.js';
+import { sendQueueEmail } from '../utils/mailer.js';
+
 import { TIME_SLOTS } from '../data/catalog.js';
 import { todayInClinic, addDays, addMinutes, ageOn, isValidISODate, weekdayOf } from '../utils/dates.js';
 
@@ -19,7 +22,14 @@ const lookupLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardH
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
 const randomNumber = () => String(Math.floor(1000 + Math.random() * 9000));
+
+// "14:00" -> "2:00 PM" (used in the email)
+const to12h = (t) => {
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+};
 
 // The website sends the booking form fields; this checks everything that doesn't need the database.
 function validateNewBooking(body) {
@@ -165,7 +175,18 @@ router.post('/', createLimiter, async (req, res, next) => {
       throw err;
     }
 
-    res.status(201).json(publicView(appt, service, dentist, service.service_cost));
+    const view = publicView(appt, service, dentist, service.service_cost);
+    const emailSent = await sendQueueEmail(data.email, {
+      ...view,
+      firstName: data.firstName,
+      appointmentTime: to12h(view.appointmentTime),
+    })
+      .then(() => true)
+      .catch((e) => {
+        console.error('Queue email failed:', e.message);
+        return false;
+      });
+    res.status(201).json({ ...view, emailSent });
   } catch (err) {
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
     next(err);

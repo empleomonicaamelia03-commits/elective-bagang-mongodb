@@ -95,6 +95,7 @@ function BookingForm() {
         serviceLabel: saved.serviceName,
         dentistLabel: saved.dentistName,
         total: saved.total,
+        emailSent: saved.emailSent,
       });
       setForm(emptyForm);
     } catch (err) {
@@ -223,7 +224,7 @@ function BookingForm() {
         <div className="info-card">
           <h3>📱 Confirmation</h3>
           <p>
-            ✅ Receive SMS &amp; Email within 24 hours<br />
+            ✅ Your booking number is emailed to you right after booking<br />
             📱 <strong>Save your 4-digit booking number!</strong><br />
             🔍 Use "Check Queue" tab to track status
           </p>
@@ -279,9 +280,12 @@ function SuccessModal({ booking, onClose, onContact }) {
 
         <div className="confirmation-details">
           <p><strong>📌 Save your booking number:</strong> #{booking.number} (use it in "Check Queue")</p>
-          <p><strong>📧 Confirmation Email:</strong> Sent to {booking.patientemail}</p>
-          <p><strong>📱 SMS Confirmation:</strong> Sent to {booking.patientcontact}</p>
-          <p><strong>⏰ Expected Reply:</strong> Within 24 hours</p>
+          <p>
+            <strong>📧 Confirmation Email:</strong>{' '}
+            {booking.emailSent
+              ? `Sent to ${booking.patientemail}`
+              : 'Could not be sent. Please save your booking number above.'}
+          </p>
         </div>
 
         <div className="success-actions">
